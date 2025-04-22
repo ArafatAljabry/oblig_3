@@ -8,6 +8,7 @@
 #include "VisualObject.h"
 #include "Utilities.h"
 
+
 class Renderer : public QVulkanWindowRenderer
 {
 public:
@@ -37,6 +38,11 @@ public:
 
     std::vector<VisualObject*>& getObjects() { return mObjects; }
     std::unordered_map<std::string, VisualObject*>& getMap() { return mMap; }
+
+    //collision detection and overlap logic
+    bool overlapDetection(VisualObject* object, VisualObject* other) const;
+    void onCollision(VisualObject* object);
+    void onCollisionEnd(VisualObject* object);
 
 protected:
 
@@ -79,6 +85,7 @@ protected:
     VkQueue mGraphicsQueue{ VK_NULL_HANDLE };
 
 private:
+    VisualObject* mPlayer; // Player
     friend class VulkanWindow;
 	std::vector<VisualObject*> mObjects;    //All objects in the program  
     std::unordered_map<std::string, VisualObject*> mMap;    // alternativ container
@@ -109,7 +116,7 @@ private:
 
     VkSurfaceFormatKHR mSurfaceFormat{};
 
-    TextureHandle mTextureHandle{};
+    TextureHandle mDefaultTextureHandle{};
 
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags requiredProperties);
 

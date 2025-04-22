@@ -4,8 +4,7 @@
 #include <fstream>
 #include "VulkanWindow.h"
 #include "WorldAxis.h"
-#include "Triangle.h"
-#include "TriangleSurface.h"
+#include "objectmesh.h"
 #include "HeightMap.h"
 #include "stb_image.h"
 
@@ -25,29 +24,34 @@ Renderer::Renderer(QVulkanWindow *w, bool msaa)
         }
     }
     // Dag 230125
-    mObjects.push_back(new Triangle());
-    mObjects.push_back((new TriangleSurface()));
     mObjects.push_back((new WorldAxis()));
 	mObjects.push_back(new HeightMap());
+    mObjects.push_back(new ObjectMesh("suzanne.obj"));
     // Dag 030225
-    mObjects.at(0)->setName("tri");
-    mObjects.at(1)->setName("quad");
-    mObjects.at(2)->setName("axis");
-	mObjects.at(3)->setName("terrain");
-    static_cast<HeightMap*>(mObjects.at(3))->makeTerrain("../../Assets/Hund.bmp");
+    mObjects.at(0)->setName("WorldAxis");
+    mObjects.at(1)->setName("terrain");
+    mObjects.at(2)->setName("Player");
+    static_cast<HeightMap*>(mObjects.at(1))->makeTerrain("../../Assets/Heightmap.jpg");
 
     // **************************************
     // Legger inn objekter i map
     // **************************************
     //std::string navn{"navn"}; // Skal VisualObject klassen få en navn-variabel?
-    // for (auto it=mObjects.begin(); it!=mObjects.end(); it++)
-    //     mMap.insert(std::pair<std::string, VisualObject*>{(*it)->getName(),*it});
+     for (auto it=mObjects.begin(); it!=mObjects.end(); it++)
+         mMap.insert(std::pair<std::string, VisualObject*>{(*it)->getName(),*it});
 
-	//Inital position of the camera
+     // Convenience pointer to the player
+     mPlayer = mObjects.at(2);
+
+     //Inital position of the camera
     mCamera.setPosition(QVector3D(-0.5, -0.5, -8));
 
     //Need access to our VulkanWindow so making a convenience pointer
     mVulkanWindow = dynamic_cast<VulkanWindow*>(w);
+    mVulkanWindow->setSelectedObject(mPlayer);
+
+
+
 }
 
 //Automatically called by Qt on Renderer startup
@@ -282,7 +286,9 @@ void Renderer::initResources()
     // Create the texture sampler
     createTextureSampler();
 
-    mTextureHandle = createTexture("../../Assets/Hund.bmp"); //Heightmap.jpg HundA.bmp
+    //mTextureHandle = createTexture("../../Assets/Hund.bmp"); //HundA.bmp
+    mDefaultTextureHandle = createTexture("../../Assets/defaultTexture.jpg");
+    mObjects.at(1)->mTexturehandle = createTexture("../../Assets/Hund.bmp");
 
     // getVulkanHWInfo(); // if you want to get info about the Vulkan hardware
 }
@@ -312,13 +318,55 @@ void Renderer::startNextFrame()
     mVulkanWindow->handleInput();
     mCamera.update();               //input can have moved the camera
 
+    //Making it so the player moves on the terrain
+    auto* terrain = static_cast<HeightMap*>(mObjects.at(1));
+    QVector3D newPos = mPlayer->getMatrix().column(3).toVector3D();
+
+    newPos.setY(terrain->getHeightAt(newPos) + mPlayer->radius);
+    mPlayer->setPosition(newPos);
+
+    if(mVulkanWindow->getSelectedObject()->getName() == "Player")
+        mCamera.FollowTarget(mPlayer, mCamera.CameraOffsetToTarget);
+
+    /*
+    onCollision(mPlayer);
+    onCollisionEnd(mPlayer);
+
+     NPC patrolling
+    if(patrolRoute == 0)
+    {
+
+        if(patrolCounter != 100)
+        {
+            mObjects.at(9)->move(0,0,.1);
+            mObjects.at(10)->move(0,0,.1);
+            patrolCounter++;
+        }else{
+            patrolCounter = 0;
+            patrolRoute = 1;
+        }
+    }
+    if(patrolRoute == 1)
+    {
+
+        if(patrolCounter != 100)
+        {
+            mObjects.at(9)->move(0,0,-.1);
+            mObjects.at(10)->move(0,0,-.1);
+            patrolCounter++;
+        }else{
+            patrolCounter = 0;
+            patrolRoute = 0;
+        }
+    }
+    */
     VkCommandBuffer commandBuffer = mWindow->currentCommandBuffer();
 
 	setRenderPassParameters(commandBuffer);
 
     VkDeviceSize vbOffset{ 0 };     //Offsets into buffer being bound
 
-    mDeviceFunctions->vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, 
+    mDeviceFunctions->vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1,
         &mDescriptorSet, 0, nullptr);
 
     setViewProjectionMatrix();   //Update the view and projection matrix in the Uniform
@@ -326,6 +374,7 @@ void Renderer::startNextFrame()
     /********************************* Our draw call!: *********************************/
     for (std::vector<VisualObject*>::iterator it=mObjects.begin(); it!=mObjects.end(); it++)
     {
+
         //Draw type
 		if ((*it)->getDrawType() == 0)
 			mDeviceFunctions->vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline1);
@@ -334,10 +383,15 @@ void Renderer::startNextFrame()
 
         QMatrix4x4 mvp = mCamera.projectionMatrix() * mCamera.viewMatrix() * (*it)->getMatrix();
         setModelMatrix((*it)->getMatrix()); //mvp);
-        
+
         // Bind the texture descriptor set
-		setTexture(mTextureHandle, commandBuffer);
-        
+        if((*it)->mTexturehandle.mTextureDescriptorSet != VK_NULL_HANDLE)
+        {
+            setTexture((*it)->mTexturehandle, commandBuffer);
+        }else{
+            setTexture(mDefaultTextureHandle,commandBuffer);
+        }
+
         mDeviceFunctions->vkCmdBindVertexBuffers(commandBuffer, 0, 1, &(*it)->getVBuffer(), &vbOffset);
 		//Check if we have an index buffer - if so, use Indexed draw
         if ((*it)->getIndices().size() > 0)
@@ -351,9 +405,6 @@ void Renderer::startNextFrame()
     /***************************************/
 
     mDeviceFunctions->vkCmdEndRenderPass(commandBuffer);
-
-    //Hardcoded!!!
-    mObjects.at(1)->rotate(1.0f, 0.0f, 0.0f, 1.0f);
     
     mWindow->frameReady();
     mWindow->requestUpdate(); // render continuously, throttled by the presentation rate
@@ -864,7 +915,11 @@ void Renderer::releaseResources()
     }
 
     // Destroy textures
-    destroyTexture(mTextureHandle);
+    destroyTexture(mDefaultTextureHandle);
+    for(auto it = mObjects.begin(); it != mObjects.end();++it)
+    {
+        destroyTexture((*it)->mTexturehandle);
+    }
 
 	if (mTextureSampler) {
 		mDeviceFunctions->vkDestroySampler(dev, mTextureSampler, nullptr);
@@ -946,7 +1001,7 @@ void Renderer::endTransientCommandBuffer(VkCommandBuffer commandBuffer)
 
 	//This is the way to submit a command buffer in Vulkan
     mDeviceFunctions->vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    //mDeviceFunctions->vkQueueWaitIdle(mGraphicsQueue);
+    mDeviceFunctions->vkQueueWaitIdle(mGraphicsQueue);
 	mDeviceFunctions->vkFreeCommandBuffers(mWindow->device(), mWindow->graphicsCommandPool(), 1, &commandBuffer);
 }
 
@@ -1250,3 +1305,40 @@ void Renderer::destroyTexture(TextureHandle& textureHandle)
     mDeviceFunctions->vkDestroyImage(mWindow->device(), textureHandle.mImage, nullptr);
 	mDeviceFunctions->vkFreeMemory(mWindow->device(), textureHandle.mTextureMemory, nullptr);
 }
+
+bool Renderer::overlapDetection(VisualObject* object, VisualObject* other) const
+{
+    float distBetweenObj = sqrt(
+        std::pow(object->getPosition().x() - object->getPosition().x(),2) +
+        std::pow(object->getPosition().y() - object->getPosition().y(),2) +
+        std::pow(object->getPosition().z() - object->getPosition().z(),2)
+        );
+
+    return distBetweenObj <= object->radius + other->radius;
+
+}
+
+void Renderer::onCollision(VisualObject* object)
+{
+    for(VisualObject* j : mObjects)
+    {
+        if(&j != &mPlayer && overlapDetection(object,j) && j->enableCollision)
+        {
+             qDebug("Colliding with an object with collision set to true");
+        }
+    }
+}
+
+void Renderer::onCollisionEnd(VisualObject* object)
+{
+    for(VisualObject* j : mObjects)
+    {
+        if(&j != &mPlayer && !(overlapDetection(object,j)) && j->enableCollision)
+        {
+
+            qDebug("No longer colliding with an object");
+        }
+    }
+}
+
+

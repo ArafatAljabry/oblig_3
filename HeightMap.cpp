@@ -98,3 +98,42 @@ void HeightMap::makeTerrain(unsigned char* textureData, int widthIn, int heightI
     //Function not made yet:
     //calculateHeighMapNormals();
 }
+
+float HeightMap::getHeightAt(const QVector3D& positionXZ) const
+{
+    QVector2D point(positionXZ.x(), positionXZ.z());
+
+    for (size_t i = 0; i < mIndices.size(); i += 3) {
+        const Vertex& v0 = mVertices[mIndices[i]];
+        const Vertex& v1 = mVertices[mIndices[i + 1]];
+        const Vertex& v2 = mVertices[mIndices[i + 2]];
+
+        QVector2D a(v0.x, v0.z);
+        QVector2D b(v1.x, v1.z);
+        QVector2D c(v2.x, v2.z);
+
+        QVector2D v0v2 = c - a;
+        QVector2D v0v1 = b - a;
+        QVector2D v0p = point - a;
+
+        float d00 = QVector2D::dotProduct(v0v1, v0v1);
+        float d01 = QVector2D::dotProduct(v0v1, v0v2);
+        float d11 = QVector2D::dotProduct(v0v2, v0v2);
+        float d20 = QVector2D::dotProduct(v0p, v0v1);
+        float d21 = QVector2D::dotProduct(v0p, v0v2);
+
+        float denom = d00 * d11 - d01 * d01;
+        if (denom == 0.0f) continue;
+
+        float v = (d11 * d20 - d01 * d21) / denom;
+        float w = (d00 * d21 - d01 * d20) / denom;
+        float u = 1.0f - v - w;
+
+        if (u >= 0.0f && v >= 0.0f && w >= 0.0f) {
+            return v0.y * u + v1.y * v + v2.y * w;
+        }
+    }
+
+    return 0.0f;  // Default flat
+}
+

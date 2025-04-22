@@ -1,5 +1,6 @@
 #ifndef CAMERA_H
 #define CAMERA_H
+#include "VisualObject.h"
 #include <QMatrix4x4>
 
 class Camera
@@ -31,6 +32,9 @@ public:
     inline void setViewMatrix(const QMatrix4x4 &newViewMatrix){ mViewMatrix = newViewMatrix; }
     inline void setProjectionMatrix(const QMatrix4x4 &newProjectionMatrix){ mProjectionMatrix = newProjectionMatrix; }
 
+//Follow target
+    void FollowTarget(VisualObject* target, QVector3D offset);
+    QVector3D CameraOffsetToTarget{0.0f, 3.0f, -10.0f};
 private:
     QVector3D mEye{0.0, 0.0, 0.0};  // Camera position
     QVector3D mAt{0.0, 0.0, -1.0};   // Forward vector

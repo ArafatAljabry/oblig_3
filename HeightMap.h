@@ -12,6 +12,7 @@ public:
     void makeTerrain(std::string heightMapImage);
 
     void makeTerrain(unsigned char* textureData, int width, int height);
+    float getHeightAt(const QVector3D& positionXZ) const;
 
 private:
 	int mWidth{ 0 };

@@ -3,6 +3,7 @@
 
 #include <QVulkanFunctions>
 #include <QMatrix4x4>
+#include "Vertex.h"
 
 //Utility function for alignment:
 static inline VkDeviceSize aligned(VkDeviceSize v, VkDeviceSize byteAlign)
@@ -24,5 +25,4 @@ struct TextureHandle
 	VkImageView mImageView{ VK_NULL_HANDLE };
 	VkDescriptorSet mTextureDescriptorSet{ VK_NULL_HANDLE };
 };
-
 #endif // UTILITIES_H

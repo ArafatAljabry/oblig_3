@@ -84,6 +84,19 @@ void Camera::rotate(float t, float x, float y, float z)
     mViewMatrix.rotate(t,x,y,z);
 }
 
+void Camera::FollowTarget(VisualObject* target, QVector3D offset)
+{
+    if(!target) return;
+    QVector3D targetPos = target->getMatrix().column(3).toVector3D();
+
+    QVector3D cameraPos = targetPos + offset;
+
+    QVector3D framing = targetPos + QVector3D(0.0f,1.0f,0.0f);
+
+    //Set the camera position
+    lookAt(cameraPos,framing,QVector3D(0.0f,1.0f,0.0f));
+}
+
 //QMatrix4x4 Camera::cMatrix()
 //{
 //    return mProjectionMatrix * mViewMatrix;

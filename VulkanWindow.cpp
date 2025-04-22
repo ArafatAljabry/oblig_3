@@ -29,6 +29,16 @@ void VulkanWindow::setCameraSpeed(float value)
         mCameraSpeed = 0.3f;
 }
 
+void VulkanWindow::setMovementSpeed(float value)
+{
+    mMovementSpeed += value;
+
+    if(mMovementSpeed < 0.01f)
+        mMovementSpeed = 0.02f;
+    if(mMovementSpeed > 10)
+        mMovementSpeed = 10;
+}
+
 void VulkanWindow::keyPressEvent(QKeyEvent *event)
 {
     if (event->key() == Qt::Key_G)
@@ -43,7 +53,8 @@ void VulkanWindow::keyPressEvent(QKeyEvent *event)
     if(event->key() == Qt::Key_F)
     {
         qDebug("Scaling object");
-        dynamic_cast<Renderer*>(mRenderer)->mObjects.at(mIndex)->scale(0.9f);
+        mSelectedObject->scale(0.9f);
+        //dynamic_cast<Renderer*>(mRenderer)->mObjects.at(mIndex)->scale(0.9f);
     }
     if (event->key() == Qt::Key_Escape)
     {
@@ -172,8 +183,15 @@ void VulkanWindow::wheelEvent(QWheelEvent *event)
             setCameraSpeed(-0.002f);
         if (numDegrees.y() > 1)
             setCameraSpeed(0.002f);
+        qDebug("CameraSpeed: %f", mCameraSpeed);
+    }else{
+        if (numDegrees.y() < 1)
+            setMovementSpeed(-0.002f);
+        if (numDegrees.y() > 1)
+            setMovementSpeed(0.002f);
+        qDebug("Object movementspeed: %f", mCameraSpeed);
     }
-    qDebug("CameraSpeed: %f", mCameraSpeed);
+
 }
 
 void VulkanWindow::mousePressEvent(QMouseEvent *event)
@@ -231,5 +249,26 @@ void VulkanWindow::handleInput()
             mCamera->updateHeigth(mCameraSpeed);
         if (mInput.E)
             mCamera->updateHeigth(-mCameraSpeed);
+    }else{
+        if(mSelectedObject != nullptr)
+        {
+
+            if(mInput.W)
+                mSelectedObject->move(0,0,mMovementSpeed);
+
+            if(mInput.A)
+                mSelectedObject->move(mMovementSpeed,0,0);
+
+            if(mInput.S)
+                mSelectedObject->move(0,0,-mMovementSpeed);
+
+            if(mInput.D)
+                mSelectedObject->move(-mMovementSpeed,0,0);
+
+            if(mInput.E)
+                mSelectedObject->move(0,mMovementSpeed,0);
+            if(mInput.Q)
+                mSelectedObject->move(0,-mMovementSpeed,0);
+        }
     }
 }

@@ -3,8 +3,8 @@
 
 #include <QVulkanWindow>
 #include <vector>
-#include "Vertex.h"
 #include "Utilities.h"
+
 
 class VisualObject
 {
@@ -32,12 +32,25 @@ public:
 	inline std::vector<Vertex> getVertices() const { return mVertices; }
 	inline std::vector<uint32_t> getIndices() const { return mIndices; }
 
+    TextureHandle mTexturehandle;
+    //for collision
+    float radius{0.5f};
+
+    void setPosition(const QVector3D& pos);
+    QVector3D getPosition();
+    std::string getTag() const{return mTag;}
+    void setTag(std::string tag);
+
+    bool enableCollision{true}; //Won't trigger collision logic if false
+
+    //for the door,would be nice on the wall class, to be continued
+    bool isOpen{false};
 protected:
     std::vector<Vertex> mVertices;
     std::vector<uint32_t> mIndices;
     QMatrix4x4 mMatrix;
     std::string mName;
-
+    std::string mTag{"actor"};
 	BufferHandle mVertexBuffer;
 	BufferHandle mIndexBuffer;
     //VkPrimitiveTopology mTopology{ VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST }; //not used
